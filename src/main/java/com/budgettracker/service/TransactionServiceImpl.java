@@ -1,15 +1,27 @@
 package com.budgettracker.service;
 
 
+import com.budgettracker.dto.SummaryResponse;
 import com.budgettracker.dto.TransactionRequest;
 import com.budgettracker.dto.TransactionResponse;
 import com.budgettracker.entity.Category;
 import com.budgettracker.entity.Transaction;
+import com.budgettracker.entity.TransactionType;
+import com.budgettracker.exception.CategoryNotFoundException;
+import com.budgettracker.exception.TransactionNotFoundException;
 import com.budgettracker.repository.CategoryRepository;
 import com.budgettracker.repository.TransactionRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
+
+import static java.util.Arrays.stream;
 
 @Service
 public class TransactionServiceImpl implements TransactionService {
@@ -23,24 +35,59 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
 
-
-
     @Override
-    public List<TransactionResponse> getAllTransactions() {
-        // returns a list of transactions--- return transactionRepository.findAll();
+    public Page<TransactionResponse> getAllTransactions(String sortBy,
+                                                        String direction,
+                                                        TransactionType type,
+                                                        String keyword,
+                                                        LocalDate startDate,
+                                                        LocalDate endDate,
+                                                        int page,
+                                                        int size) {
 
-        //To convert each entity into a DTO, we can use JAVA STREAMS
-        return transactionRepository.findAll()
-                .stream()
-                .map(this::mapToResponse)
-                .toList();
+
+        //SORTING
+        Sort.Direction sortDirection = Sort.Direction.fromString(direction);// Converts "ASC" or "DESC" into an enum
+
+        Sort sort = Sort.by(sortDirection, sortBy); // Creates sorting instructions in sort variable
+
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+
+        // FILTERING
+        Page<Transaction> transactions; //DECLARES A TRANSACTIONS VARIABLE TO BE USED BELOW.
+
+        // Add Date-Filtering Logic
+        if (startDate != null && endDate != null) { // Checks if both dates are provided
+            transactions = transactionRepository.findByDateBetween(startDate,endDate, pageable);
+
+        }
+        // search and filter
+        else if (keyword != null && !keyword.isBlank() && type != null) {
+            transactions = transactionRepository.findByDescriptionContainingIgnoreCaseAndType(keyword, type, pageable);
+
+            // search only
+        } else if (keyword != null && !keyword.isBlank()) {
+            transactions = transactionRepository.findByDescriptionContainingIgnoreCase(keyword, pageable);
+
+            // Filter by transaction type
+        } else if (type != null) {
+            transactions = transactionRepository.findByType(type, pageable); // Filter only
+
+        } else {
+            transactions = transactionRepository.findAll(pageable); //retrieves all
+        }
+
+
+        // Converts entities into response DTOs USING STREAM.
+        return transactions.map(this::mapToResponse); //This converts each Transaction entity into a TransactionResponse DTO while preserving pagination information.
     }
 
     //private helper method to retrieve the Transaction entity
-     private Transaction findTransactionById(Long id) {
+    private Transaction findTransactionById(Long id) {
         return transactionRepository.findById(id)
 
-                .orElseThrow(() -> new RuntimeException("Transaction Not found"));
+                .orElseThrow(() -> new TransactionNotFoundException("Transaction not found"));
     }
 
     // Method to return a Transaction entity, which we need for database operations such as updating and deleting transactions.
@@ -62,7 +109,7 @@ public class TransactionServiceImpl implements TransactionService {
 
         Transaction savedTransaction = transactionRepository.save(transaction);//saves to mysql
 
-        TransactionResponse response= mapToResponse(savedTransaction);
+        TransactionResponse response = mapToResponse(savedTransaction);
 
         return response;
     }
@@ -71,23 +118,23 @@ public class TransactionServiceImpl implements TransactionService {
     public TransactionResponse updateTransaction(Long id, TransactionRequest request) {
         Transaction existingTransaction = findTransactionById(id);
 
-         //updates all the fields.
+        //updates all the fields.
         existingTransaction.setDescription(request.getDescription());
         existingTransaction.setAmount(request.getAmount());
         existingTransaction.setType(request.getType());
         existingTransaction.setDate(request.getDate());
 
         Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new RuntimeException("Category Not Found"));
+                .orElseThrow(() -> new CategoryNotFoundException("Category Not Found"));
 
         existingTransaction.setCategory(category);
 
 
-       Transaction savedTransaction = transactionRepository.save(existingTransaction);
+        Transaction savedTransaction = transactionRepository.save(existingTransaction);
 
-       TransactionResponse response = mapToResponse(savedTransaction);
+        TransactionResponse response = mapToResponse(savedTransaction);
 
-       return response;
+        return response;
 
     }
 
@@ -99,7 +146,7 @@ public class TransactionServiceImpl implements TransactionService {
     }
 
     // Method to Convert TransactionRequest to Transaction, Dto to Entity Mapping: request to Entity
-    private Transaction mapToEntity(TransactionRequest request){
+    private Transaction mapToEntity(TransactionRequest request) {
 
         Transaction transaction = new Transaction();
 
@@ -109,7 +156,7 @@ public class TransactionServiceImpl implements TransactionService {
         transaction.setDate(request.getDate());
 
         Category category = categoryRepository.findById(request.getCategoryId())
-            .orElseThrow(() -> new RuntimeException("Category Not Found"));
+                .orElseThrow(() -> new CategoryNotFoundException("Category Not Found"));
 
         transaction.setCategory(category); // Associates the Category with the Transaction
 
@@ -137,6 +184,30 @@ public class TransactionServiceImpl implements TransactionService {
 
 
         return response;
+
+    }
+
+    @Override
+    public SummaryResponse getSummary() {
+
+        //Sum of all INCOME transactions
+        BigDecimal totalIncome = transactionRepository.sumAmountByType(TransactionType.INCOME); // sumAmountByType() → Calculates the sum of transaction amounts
+
+        // Sum of all EXPENSE transactions
+        BigDecimal totalExpenses = transactionRepository.sumAmountByType(TransactionType.EXPENSE);
+
+        if (totalIncome == null) {
+            totalIncome = BigDecimal.ZERO; // This ensures totalIncome always contains a valid number(O). No Nullpointer Exception.
+        }
+
+        if (totalExpenses == null) {
+            totalExpenses = BigDecimal.ZERO;
+        }
+
+        // Total income minus total Expenses
+        BigDecimal balance = totalIncome.subtract(totalExpenses);
+
+        return new SummaryResponse(totalIncome, totalExpenses, balance);
 
     }
 
