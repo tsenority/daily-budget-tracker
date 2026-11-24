@@ -60,6 +60,22 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/daily-budget-tracker:latest
 
+      - name: Debug OIDC identity
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          python3 - <<'PY'
+          import os, json, base64, urllib.request
+          url = os.environ["ACTIONS_ID_TOKEN_REQUEST_URL"] + "&audience=sts.amazonaws.com"
+          req = urllib.request.Request(url, headers={
+              "Authorization": "Bearer " + os.environ["ACTIONS_ID_TOKEN_REQUEST_TOKEN"]
+          })
+          token = json.load(urllib.request.urlopen(req))["value"]
+          payload = token.split(".")[1]
+          claims = json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)))
+          for key in ["sub", "aud", "iss"]:
+              print(f"{key}: {claims.get(key)}")
+          PY
+
       - name: Configure AWS credentials
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: aws-actions/configure-aws-credentials@v5
