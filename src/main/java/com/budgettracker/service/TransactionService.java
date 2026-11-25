@@ -1,9 +1,9 @@
 package com.budgettracker.service;
 
+import com.budgettracker.dto.ExpenseCategoryResponse;
 import com.budgettracker.dto.SummaryResponse;
 import com.budgettracker.dto.TransactionRequest;
 import com.budgettracker.dto.TransactionResponse;
-import com.budgettracker.entity.Transaction;
 import com.budgettracker.entity.TransactionType;
 import org.springframework.data.domain.Page;
 
@@ -32,6 +32,8 @@ public interface TransactionService {
     void deleteTransaction(Long id);
 
     SummaryResponse getSummary();
+
+    List<ExpenseCategoryResponse> getExpensesByCategory();
 
 
 }

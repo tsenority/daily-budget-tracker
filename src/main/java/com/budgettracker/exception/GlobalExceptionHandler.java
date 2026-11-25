@@ -2,6 +2,7 @@ package com.budgettracker.exception;
 
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -39,6 +40,15 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.NOT_FOUND) //to display 404 Not Found
     public Map<String, String> handleCategoryNotFound(CategoryNotFoundException ex) {
         return Map.of("error", ex.getMessage());
-             }
+    }
+
+    // For Handling email already registered message
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<String> handleIllegalArgumentException(IllegalArgumentException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ex.getMessage());
+
+    }
+
 
     }

@@ -1,6 +1,7 @@
 package com.budgettracker.controller;
 
 
+import com.budgettracker.dto.ExpenseCategoryResponse;
 import com.budgettracker.dto.SummaryResponse;
 import com.budgettracker.dto.TransactionRequest;
 import com.budgettracker.dto.TransactionResponse;
@@ -13,6 +14,9 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.List;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 
 @RestController
 @RequestMapping("/api/transactions")
@@ -74,6 +78,15 @@ public class TransactionController {
     @GetMapping("/summary")
     public SummaryResponse getSummary() {
         return transactionService.getSummary();
+    }
+
+    @GetMapping("/expenses-by-category")
+    public ResponseEntity<List<ExpenseCategoryResponse>> getExpensesByCategory() {
+
+        List<ExpenseCategoryResponse> expenses =
+                transactionService.getExpensesByCategory();
+
+        return ResponseEntity.ok(expenses);
     }
 
 

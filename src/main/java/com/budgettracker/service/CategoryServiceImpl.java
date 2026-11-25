@@ -2,8 +2,12 @@ package com.budgettracker.service;
 
 
 import com.budgettracker.entity.Category;
+import com.budgettracker.entity.User;
+import com.budgettracker.exception.CategoryNotFoundException;
 import com.budgettracker.repository.CategoryRepository;
 
+import com.budgettracker.repository.UserRepository;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -15,24 +19,60 @@ public class CategoryServiceImpl implements CategoryService {
 
     private final CategoryRepository categoryRepository;
 
-    public CategoryServiceImpl(CategoryRepository categoryRepository) {
+    private final UserRepository userRepository;
+
+
+    public CategoryServiceImpl(CategoryRepository categoryRepository,UserRepository userRepository ) {
         this.categoryRepository = categoryRepository;
+        this.userRepository = userRepository;
     }
 
     @Override
     public List<Category> getAllCategories() {
-        return categoryRepository.findAll();
+        String email = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("User not found"));
+
+       return categoryRepository.findByUser(user);
 
     }
 
     @Override
     public Category getCategoryById(Long id){
-        return categoryRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Not found"));
+
+        String email = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+
+
+        // Retrieve the User Entity
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("User not found"));
+
+        return categoryRepository.findByIdAndUser(id, user)
+                .orElseThrow(() ->
+                        new CategoryNotFoundException("Category not found"));
     }
 
     @Override
     public Category createCategory(Category category) {
+
+        String email = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getName();
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("User not found"));
+
+        category.setUser(user);
+
         return categoryRepository.save(category);
     }
 

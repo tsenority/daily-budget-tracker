@@ -1,10 +1,8 @@
 package com.budgettracker.entity;
 
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.*;
 
 @Entity
 public class Category {
@@ -38,4 +36,16 @@ public class Category {
     }
 
 
+    @JsonIgnore // It tells Jackson not to include the user property when converting the Category entity into JSON.
+    @ManyToOne
+     @JoinColumn(name = "user_id")
+    private User user;
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
+    }
 }

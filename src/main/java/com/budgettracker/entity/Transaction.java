@@ -28,6 +28,18 @@ public class Transaction {
                                 //This custom class is called Reference Type OR User Defined Data Type.
     //Category=Reference Type, category=Reference Variable
 
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User user;
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
+    }
+
     //No Argument Constructor : Java automatically provides it when no constructors are declared.
     //We explicitly write it when we want to preserve it alongside other constructors.
     public Transaction() {
